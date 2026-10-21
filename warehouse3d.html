@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>โมเดล 3D คลังสินค้า 3 ไร่</title>
+<style>
+:root{--bg:#e9eef3;--panel:#0f2547;--ink:#fff;--accent:#f2b705;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10161d;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10161d;color-scheme:dark}
+html,body{height:100%;margin:0;background:var(--bg);font-family:"Noto Sans Thai","Sarabun",system-ui,sans-serif;overflow:hidden}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top,0px));background:var(--panel);color:var(--ink);border-radius:10px;padding:10px 14px;max-width:260px;font-size:13px;line-height:1.5}
+.hud b{font-size:17px;display:block}
+.bar{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:14px;border:0;border-radius:8px;padding:9px 14px;background:var(--panel);color:var(--ink);cursor:pointer}
+button.on{background:var(--accent);color:#1a1a1a}
+button:focus-visible{outline:3px solid var(--accent)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud"><b>ที่ดิน 3 ไร่ (4,800 ตร.ม.)</b>อาคารคลังสินค้า 36 × 40 ม. · พื้นที่ใช้สอย 1,440 ตร.ม. · ลากเพื่อหมุน บีบเพื่อซูม</div>
+<div class="bar">
+<button id="bRoof" class="on">หลังคา: เปิด</button>
+<button id="bRot">หมุนอัตโนมัติ</button>
+<button id="bTop">มุมบน</button>
+<button id="bIso">มุมเฉียง</button>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const cv=document.getElementById('c');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;
+const S=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(45,1,1,600);
+const ctl=new THREE.OrbitControls(cam,cv);ctl.maxPolarAngle=Math.PI/2.05;ctl.enableDamping=true;
+function view(p,t){cam.position.set(...p);ctl.target.set(...t);ctl.update()}
+view([70,75,85],[0,0,0]);
+S.add(new THREE.HemisphereLight(0xffffff,0x667788,0.85));
+const sun=new THREE.DirectionalLight(0xffffff,0.8);sun.position.set(-50,90,40);sun.castShadow=true;
+Object.assign(sun.shadow.camera,{left:-70,right:70,top:70,bottom:-70,far:250});sun.shadow.mapSize.set(2048,2048);S.add(sun);
+
+const M=c=>new THREE.MeshLambertMaterial({color:c});
+function box(w,h,d,x,y,z,mat,parent=S,shadow=true){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y+h/2,z);m.castShadow=shadow;m.receiveShadow=true;parent.add(m);return m}
+function label(t,x,y,z,s=1,bg='#0f2547'){const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle=bg;g.fillRect(0,0,512,96);g.fillStyle='#fff';g.font='bold 44px "Noto Sans Thai",Sarabun,sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(t,256,50);
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false}));sp.scale.set(10*s,1.9*s,1);sp.position.set(x,y,z);S.add(sp)}
+
+// ground: site 60 x 80 (x -30..30, z -40..40), north = -z
+box(150,0.2,170,0,-0.2,0,M(0x7a8a63),S,false);
+box(60,0.2,80,0,0,0,M(0x8d949b),S,false);
+// public road on the left
+box(14,0.25,170,-46,0,0,M(0x3d4349),S,false);
+for(let z=-80;z<80;z+=8)box(0.3,0.05,4,-46,0.25,z,M(0xffffff),S,false);
+// white boundary posts/fence
+const fm=M(0xf4f4f4);
+box(60,0.8,0.3,0,0,-40,fm);box(60,0.8,0.3,0,0,40,fm);box(0.3,0.8,80,30,0,0,fm);
+box(0.3,0.8,32,-30,0,-24,fm);box(0.3,0.8,32,-30,0,24,fm);
+// internal loop road (darker)
+const rd=M(0x50565c);
+box(5,0.1,70,-24,0.2,0,rd,S,false);box(5,0.1,70,26,0.2,0,rd,S,false);
+box(52,0.1,5,1,0.2,-34,rd,S,false);box(52,0.1,5,1,0.2,34,rd,S,false);
+box(8,0.1,5,-34,0.2,0,rd,S,false);
+// gate
+box(1,3,6,-31,0,0,M(0x2d4a7a));label('ทางเข้า',-33,5,0,0.9);
+
+// ---------- warehouse ----------
+const WX=4,WZ=0,H=9;
+const wh=new THREE.Group();S.add(wh);
+box(28,0.3,36,WX,0,WZ,M(0xcfd4d9),S,false);
+const wm=new THREE.MeshLambertMaterial({color:0xe4e7ea});
+box(28,H,0.5,WX,0,WZ-18,wm);box(28,H,0.5,WX,0,WZ+18,wm);
+box(0.5,H,36,WX-14,0,WZ,wm);box(0.5,H,36,WX+14,0,WZ,wm);
+// dock doors
+for(let i=0;i<4;i++)box(4,5,0.2,WX-9+i*6,0,WZ-18.3,M(0x1f6fb5),S,false);
+for(let i=0;i<4;i++)box(4,5,0.2,WX-9+i*6,0,WZ+18.3,M(0x1f6fb5),S,false);
+// roof (toggle)
+const roof=new THREE.Mesh(new THREE.BoxGeometry(29,0.6,37),new THREE.MeshLambertMaterial({color:0x9aa7b4,transparent:true,opacity:0.9}));
+roof.position.set(WX,H+0.3,WZ);roof.castShadow=true;S.add(roof);
+// racks: color groups [z, rows, colors]
+const groups=[[-11,[0xe53935,0xe53935,0xe53935]],[-2.5,[0x1e6fe0,0x1e6fe0,0x1e6fe0]],[6,[0x6cc24a,0xf2d21b,0xf2d21b]],[13.5,[0x8e44d6,0x8e44d6]]];
+groups.forEach(([z0,cols])=>{cols.forEach((c,r)=>{const z=z0+r*2.2;
+ box(22,0.15,1.5,WX,0,WZ+z,M(0x555c63),S,false);
+ for(let lv=0;lv<3;lv++){box(22,0.12,1.5,WX,1.4+lv*2,WZ+z,M(0x555c63),S,false);
+  for(let i=0;i<20;i++)box(0.95,1.2,1.1,WX-10+i*1.1,1.55+lv*2,WZ+z,M(c),S,false)}
+ for(let i=0;i<=10;i++)box(0.15,6.4,1.5,WX-11+i*2.2,0,WZ+z,M(0x2d3a4b),S,false)})});
+// side rooms
+const rooms=[
+['ห้องประชุม',-13,-13,0xb98ad8,6,12],['ห้องพักคนขับ',-13,-6.5,0x7fcf8f,6,12],['ห้อง IT',-13,6.5,0x7fb2e8,6,12],['ห้องพัก/ปูมค้า',-13,13,0xc98ad8,6,12]];
+rooms.forEach(([n,dx,z,c,w,d])=>{box(w,4,d*0.52,WX+dx-3-3,0,z,M(c));label(n,WX+dx-6,5.8,z,0.85)});
+[['ห้องควบคุม',-9],['ห้องประชุม',-3],['ห้อง IT',4],['ห้องน้ำ/หรัญ',11]].forEach(([n,z],i)=>{box(8,4,6,WX+18,0,z,M([0x9ec3ea,0xa9d1f0,0x9ec3ea,0xb5d6f5][i]));label(n,WX+18,5.8,z,0.85)});
+// ---------- trucks ----------
+function truck(x,z,rot,c=0xf6f6f6){const g=new THREE.Group();
+ box(2.6,3.2,8,0,0.8,0,M(c),g);box(2.6,2.2,2,0,0.8,-5,M(0x1c3f7a),g);
+ [[-1.3,-4],[1.3,-4],[-1.3,2.5],[1.3,2.5]].forEach(p=>box(0.4,1,1,p[0],0,p[1],M(0x111111),g,false));
+ g.position.set(x,0,z);g.rotation.y=rot;S.add(g)}
+for(let i=0;i<4;i++)truck(WX-9+i*6,-27,0);          // inbound (cab points away)
+for(let i=0;i<4;i++)truck(WX-9+i*6,27,Math.PI);      // outbound
+truck(-46,-22,Math.PI/2);truck(-46,6,Math.PI/2);
+label('ท่าโหลดสินค้าเข้า (Inbound)',WX,11,-24,1.2);
+label('ท่าโหลดสินค้าออก (Outbound)',WX,11,24,1.2);
+label('ทางเข้า-ออก 18 ม.',2,4,40,1);
+// ---------- parking ----------
+const cc=[0xffffff,0x2d3d55,0xb5282f,0xd0d4d8,0x1b1b1b];
+function park(x0,z0,tag){for(let r=0;r<2;r++)for(let i=0;i<4;i++){const g=new THREE.Group();box(2,1.2,4.4,0,0.3,0,M(cc[(i+r)%5]),g);box(1.7,0.8,2.2,0,1.5,0,M(0x222c38),g,false);g.position.set(x0+i*2.8,0,z0+r*7);S.add(g)}
+ label('ที่จอดรถ 8 คัน',x0+4,5,z0+3,0.9)}
+park(-26,-35,1);park(-26,24,2);
+// ---------- trees ----------
+function tree(x,z){const h=3+Math.random()*3;box(0.4,h*0.4,0.4,x,0,z,M(0x5b3a1e),S,false);
+ const s=new THREE.Mesh(new THREE.SphereGeometry(1.5+Math.random(),8,6),M(0x2f7d32));s.position.set(x,h*0.4+1.6,z);s.castShadow=true;S.add(s)}
+for(let x=-30;x<=30;x+=3){tree(x,-43);tree(x,43)}
+for(let z=-40;z<=40;z+=3){tree(34,z);if(Math.abs(z)>12)tree(-33,z)}
+for(let k=0;k<30;k++){tree(-28+Math.random()*10,-20+Math.random()*30);}
+// small guard blue booth
+box(4,3,4,-26,0,-10,M(0x3f7fd0));
+// scale: 60 m / 80 m dims
+label('60 ม.',0,3,-42,1);label('80 ม.',36,3,0,1);
+
+// ---------- UI ----------
+let rot=false;
+const $=id=>document.getElementById(id);
+$('bRoof').onclick=e=>{roof.visible=!roof.visible;e.target.classList.toggle('on',roof.visible);e.target.textContent='หลังคา: '+(roof.visible?'เปิด':'ปิด')};
+$('bRot').onclick=e=>{rot=!rot;ctl.autoRotate=rot;ctl.autoRotateSpeed=1.2;e.target.classList.toggle('on',rot)};
+$('bTop').onclick=()=>{roof.visible=false;$('bRoof').classList.remove('on');$('bRoof').textContent='หลังคา: ปิด';view([0,130,0.1],[0,0,0])};
+$('bIso').onclick=()=>view([70,75,85],[0,0,0]);
+$('bRoof').classList.add('on');
+function fit(){const w=innerWidth,h=innerHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+addEventListener('resize',fit);fit();
+(function loop(){requestAnimationFrame(loop);ctl.update();R.render(S,cam)})();
+</script>
+</body>
+</html>
